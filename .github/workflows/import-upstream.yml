@@ -1,0 +1,31 @@
+name: Import upstream and enhance
+on:
+  push:
+    paths: ['.github/workflows/import-upstream.yml', 'enhancements/**']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch original complete project
+        run: |
+          git clone --depth 1 https://github.com/handsomestWei/patent-disclosure-skill.git /tmp/patent-upstream
+          rsync -a --exclude=.git --exclude=.github --exclude=README.md /tmp/patent-upstream/ ./
+          cp /tmp/patent-upstream/README.md UPSTREAM_README.md
+          python enhancements/apply.py
+      - name: Check
+        run: |
+          python -m unittest discover -s enhancements/tests -v
+          test -f skills/patent-disclosure/SKILL.md
+          test -f skills/patent-application/SKILL.md
+          test -f LICENSE
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then git commit -m "feat: import upstream and apply safeguards" && git push origin HEAD:main; fi
